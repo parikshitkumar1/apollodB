@@ -173,7 +173,13 @@ We welcome contributions! Areas of interest:
 
 ## License
 
-This project is for educational and research purposes. Please respect the original DEAM dataset licensing terms.
+**All Rights Reserved** - This software is proprietary and protected by copyright law. 
+
+Copyright (c) 2025 Parikshit Kumar. All rights reserved.
+
+Unauthorized copying, distribution, or use is strictly prohibited. For commercial licensing inquiries, contact: parikshitkumar1@gmail.com
+
+See [LICENSE](LICENSE) for complete terms.
 
 ---
 
