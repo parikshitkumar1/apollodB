@@ -2,7 +2,6 @@
 
 ![ApollodB](apollodb-hero.png)
 
-**Built by Parikshit Kumar in California**
 
 apollodB is an innovative Streamlit application that combines cutting-edge music emotion recognition with personalized audio engineering. Analyze your music's emotional characteristics and generate custom EQ curves tailored to your listening preferences.
 
