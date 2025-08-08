@@ -182,11 +182,4 @@ Unauthorized copying, distribution, or use is strictly prohibited. For commercia
 
 See [LICENSE](LICENSE) for complete terms.
 
----
 
-]
-gcloud builds submit --tag $IMAGE .
-gcloud run deploy apollodb --image $IMAGE --region $REGION --platform managed --allow-unauthenticated --port 8080
-```
-
-Once deployed, open the service URL and the static frontend is mounted at `/app` as well.
