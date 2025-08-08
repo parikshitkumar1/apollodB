@@ -7,7 +7,7 @@ Built by Parikshit Kumar in California
 
 import numpy as np
 import json
-from inference import MusicEmotionPredictor
+from backend.inference import MusicEmotionPredictor
 
 def demo_inference():
     """Demonstrate the inference functionality"""

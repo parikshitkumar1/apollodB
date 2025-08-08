@@ -9,7 +9,7 @@ import os
 import urllib.parse
 import logging
 import atexit
-from inference import MusicEmotionPredictor, predict_multiple_files
+from backend.inference import MusicEmotionPredictor, predict_multiple_files
 
 # Configure logging for production
 logging.basicConfig(
@@ -1936,5 +1936,4 @@ atexit.register(cleanup_temp_files)
 if __name__ == "__main__":
     main()
 
-
-// 2025-08-02T06:30:36.394Z - minor update
+# 2025-08-02T06:30:36.394Z - minor update

@@ -1,9 +1,11 @@
 # apollodB Project Structure
 
 ```
-apollov5/
+apollodB/
 ├── app.py                    # Main Streamlit application
-├── inference.py              # Core inference engine and EQ generation
+├── backend/
+│   ├── __init__.py
+│   └── inference.py          # Core inference engine and EQ generation
 ├── launch.py                 # Application launcher script
 ├── demo.py                   # Demo script for testing inference
 ├── config.json              # Configuration settings
@@ -31,7 +33,7 @@ apollov5/
 - Cyberpunk/Greek aesthetic with black/grey/cyan color scheme
 - Roboto Bold typography throughout
 
-**inference.py** 
+**backend/inference.py** 
 - MusicEmotionPredictor class for emotion analysis
 - EQ curve generation algorithms
 - Valence-arousal space mapping

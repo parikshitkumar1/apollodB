@@ -3,7 +3,9 @@
 ![ApollodB](apollodb-hero.png)
 
 
-apollodB is an innovative Streamlit application that combines cutting-edge music emotion recognition with personalized audio engineering. Analyze your music's emotional characteristics and generate custom EQ curves tailored to your listening preferences.
+apollodB is an AI system that combines cutting-edge music emotion recognition with personalized audio engineering. Analyze your music's emotional characteristics and generate custom EQ curves tailored to your listening preferences.
+
+Note on architecture: The primary runtime is now a FastAPI backend (`backend/server.py`) with a JavaScript frontend served from `web/`. A legacy Streamlit app (`app.py`) remains for reference and parity testing.
 
 ## Features
 
@@ -53,7 +55,7 @@ apollodB is an innovative Streamlit application that combines cutting-edge music
 1. **Clone the repository:**
 ```bash
 git clone <repository-url>
-cd apollov5
+cd apollodB
 ```
 
 2. **Install dependencies:**
@@ -67,7 +69,7 @@ pip install -r requirements.txt
    - `scaler_scale.npy` - Feature scaling parameters
    - `labels.json` - Emotion label mappings
 
-4. **Run the application:**
+4. **Run the application (legacy Streamlit):**
 ```bash
 streamlit run app.py
 ```
@@ -185,3 +187,68 @@ See [LICENSE](LICENSE) for complete terms.
 **Made with ❤️ in California by Parikshit Kumar**
 
 For questions, suggestions, or collaboration inquiries, please open an issue or contact the developer.
+
+---
+
+## Quick Start (FastAPI backend + JS frontend)
+
+### Local development
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+
+# Start backend (default localhost:8000)
+python -m uvicorn backend.server:app --host 127.0.0.1 --port 8000 --reload
+
+# In another terminal, serve frontend (http://127.0.0.1:8080)
+python3 -m http.server 8080 -d web
+```
+
+Health check: `curl http://127.0.0.1:8000/healthz`
+
+### Git setup
+
+```bash
+git init
+git add .
+git commit -m "Initial FastAPI backend, web frontend, Docker & Cloud Run setup"
+git remote add origin git@github.com:<your-username>/apollodB.git
+git push -u origin main
+```
+
+### Docker (local)
+
+```bash
+docker build -t apollodb:local .
+docker run --rm -p 8080:8080 apollodb:local
+# Test: curl http://127.0.0.1:8080/healthz
+```
+
+### Deploy to Google Cloud Run
+
+Prereqs: `gcloud` CLI installed, a GCP project, and billing enabled.
+
+```bash
+gcloud auth login
+gcloud config set project <PROJECT_ID>
+
+# Easiest source-based deploy (builds and deploys)
+gcloud run deploy apollodb \
+  --source . \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 8080
+
+# or using Docker image explicitly
+PROJECT_ID=<PROJECT_ID>
+REGION=us-central1
+IMAGE=gcr.io/$PROJECT_ID/apollodb:latest
+
+gcloud builds submit --tag $IMAGE .
+gcloud run deploy apollodb --image $IMAGE --region $REGION --platform managed --allow-unauthenticated --port 8080
+```
+
+Once deployed, open the service URL and the static frontend is mounted at `/app` as well.

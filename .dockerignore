@@ -1,0 +1,41 @@
+# Docker build context excludes
+.git
+.gitignore
+*.md
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ipynb
+__pycache__/
+*.py[cod]
+*$py.class
+.env*
+.streamlit/
+.ipynb_checkpoints
+
+# Python caches and build
+.build/
+build/
+dist/
+.eggs/
+*.egg-info/
+.wheels/
+.cache/
+.tox/
+.pytest_cache/
+
+# Local venvs
+venv/
+.env/
+.venv/
+
+# Logs and tmp
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+
+# Model artifacts (optional)
+model_cache/
