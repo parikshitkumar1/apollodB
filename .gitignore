@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.tmp
+*.swp
+*.swo
+.venv/
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build/Dist
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+
+# Notebooks/Checkpoints
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+
+# Media / test data
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+
+# IDE
+.vscode/
+.idea/
+
+# Cache
+.cache/
+.mypy_cache/
+.pytype/
+.pytest_cache/
+
+# Docker
+*.tar
+
+# Matplotlib cache
+.matplotlib/
+
+# Misc
+*.bak
+*.old
+
+# Models are kept (small files)
+# models/

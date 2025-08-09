@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pytest_cache/
+.venv/
+venv/
+
+# Git
+.git/
+.gitignore
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
+# Not needed in container
+*.ipynb
+training_history.npy
+final_model.pth
+best_val_accuracy.pth
+sample_audio*.mp3
+apollodb-hero.png
+
+# Node
+node_modules/

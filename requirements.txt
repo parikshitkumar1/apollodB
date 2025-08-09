@@ -1,0 +1,22 @@
+# Runtime
+fastapi==0.110.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+pydantic==2.6.4
+starlette==0.36.3
+
+# ML / DSP
+numpy==1.26.4
+scipy==1.11.4
+numba==0.58.1
+llvmlite==0.41.1
+librosa==0.10.1
+soundfile==0.12.1
+matplotlib==3.8.4
+Pillow==10.3.0
+
+# PyTorch installed in Dockerfile from CPU index to avoid CUDA wheels
+
+# Utils
+requests==2.32.3
+aiofiles==23.2.1

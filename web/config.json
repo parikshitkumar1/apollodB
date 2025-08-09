@@ -1,0 +1,86 @@
+{
+  "app_config": {
+    "title": "apollodB",
+    "subtitle": "AI-Powered Music Emotion Analysis & EQ Optimization",
+    "author": "Parikshit Kumar",
+    "location": "California",
+    "version": "1.0.0"
+  },
+  "model_config": {
+    "model_path": "best_model.h5",
+    "scaler_mean_path": "scaler_mean.npy",
+    "scaler_scale_path": "scaler_scale.npy",
+    "labels_path": "labels.json",
+    "neutral_confidence_threshold": 0.93
+  },
+  "audio_config": {
+    "sample_rate": 22050,
+    "duration": 30,
+    "n_mels": 128,
+    "hop_length": 512,
+    "max_len": 1300,
+    "supported_formats": ["mp3", "wav", "m4a", "flac"]
+  },
+  "ui_config": {
+    "colors": {
+      "primary": "#00ffff",
+      "secondary": "#ffffff",
+      "background": "#1a1a1a",
+      "dark": "#0a0a0a",
+      "grey": "#888888"
+    },
+    "fonts": {
+      "primary": "Roboto",
+      "weight": "700"
+    }
+  },
+  "eq_config": {
+    "frequency_bands": [
+      20, 21, 22, 23, 24, 26, 27, 29, 30, 32, 34, 36, 38, 40, 43, 45, 48, 50, 53, 56, 59, 63, 66, 70, 74, 78, 83, 87, 92, 97, 103, 109, 115, 121, 128, 136, 143, 151, 160, 169, 178, 188, 199, 210, 222, 235, 248, 262, 277, 292, 309, 326, 345, 364, 385, 406, 429, 453, 479, 506, 534, 565, 596, 630, 665, 703, 743, 784, 829, 875, 924, 977, 1032, 1090, 1151, 1216, 1284, 1357, 1433, 1514, 1599, 1689, 1784, 1885, 1991, 2103, 2221, 2347, 2479, 2618, 2766, 2921, 3086, 3260, 3443, 3637, 3842, 4058, 4287, 4528, 4783, 5052, 5337, 5637, 5955, 6290, 6644, 7018, 7414, 7831, 8272, 8738, 9230, 9749, 10298, 10878, 11490, 12137, 12821, 13543, 14305, 15110, 15961, 16860, 17809, 18812, 19871
+    ],
+    "default_aggression": 0.5,
+    "max_aggression": 1.0,
+    "min_aggression": 0.0
+  },
+  "iems": {
+    "LETSHUOER MYSTIC 8": {"price": "$1000", "signature": "Vocal benchmark", "valence_match": ["happy", "calm"], "notes": "Female vocal benchmark under $2000, clean & airy"},
+    "Thieaudio Monarch MK4": {"price": "$1150", "signature": "All-rounder", "valence_match": ["neutral", "happy"], "notes": "Smooth, clean, balanced with tuning options"},
+    "XENNS TOP PRO": {"price": "$499", "signature": "Technical all-rounder", "valence_match": ["neutral", "happy"], "notes": "Amazing resolution & detail, direct upgrade from Astrals"},
+    "ZIIGAAT Arcanis": {"price": "$399", "signature": "Vocal-centric", "valence_match": ["calm", "sad"], "notes": "Best vocals under $500, genre-specific for slower tracks"},
+    "ZIIGAAT Luna": {"price": "$379", "signature": "Warm & dreamy", "valence_match": ["calm", "neutral"], "notes": "Airy, smooth, lush vibes - great for rock/metal"},
+    "ZIIGAAT Odyssey": {"price": "$229", "signature": "Musical journey", "valence_match": ["calm", "sad"], "notes": "Mini Subtonic Storm that scales, immersive for indie/ballads"},
+    "Softears Volume S": {"price": "$319", "signature": "Vocal scaling", "valence_match": ["happy", "calm"], "notes": "Amazing vocal scaling at high volume"},
+    "Kiwi Ears x HBB PUNCH": {"price": "$449", "signature": "Balanced basshead", "valence_match": ["happy", "neutral"], "notes": "Endgame bass with extended vocals & treble"},
+    "Kiwi Ears Astral": {"price": "$299", "signature": "Balanced fun", "valence_match": ["neutral", "happy"], "notes": "Great all-rounder, airy with good sub-bass"},
+    "SIMGOT SUPERMIX4": {"price": "$150", "signature": "Smooth Harman", "valence_match": ["neutral", "calm"], "notes": "Endgame Harman, one of the smoothest IEMs"},
+    "Truthear NOVA": {"price": "$150", "signature": "Clean Harman", "valence_match": ["neutral", "happy"], "notes": "Pinnacle of trying not to offend anyone, smooth treble"},
+    "ARTTI T10": {"price": "$50", "signature": "Planar value", "valence_match": ["neutral", "happy"], "notes": "Insane value, almost identical to S12"},
+    "TangZu Xuan Wu Gate": {"price": "$650", "signature": "Clean technical", "valence_match": ["neutral", "calm"], "notes": "Neutral tuning done right, very detailed"},
+    "HIDIZS MK12": {"price": "$129-209", "signature": "High-volume scaling", "valence_match": ["calm", "sad"], "notes": "Insane scaling, warm & non-fatiguing"},
+    "LETSHUOER DX1": {"price": "$159", "signature": "Dynamic vocals", "valence_match": ["happy", "calm"], "notes": "Vibrant vocals with good balance"},
+    "ZIIGAAT LUSH": {"price": "$179", "signature": "Clean technical", "valence_match": ["calm", "neutral"], "notes": "Fuller sound with scaling, immersive"},
+    "EPZ P50": {"price": "$200", "signature": "Clean balanced", "valence_match": ["neutral", "calm"], "notes": "Better tuned MEGA5EST, dynamic"},
+    "Punch Audio Martilo": {"price": "$329", "signature": "Balanced basshead", "valence_match": ["happy", "neutral"], "notes": "Cheaper HBB Punch with slightly less bass"},
+    "EPZ K9": {"price": "$300", "signature": "All-rounder v-shape", "valence_match": ["neutral", "happy"], "notes": "Natural vocals, nice mid-bass slam"},
+    "CrinEar Meta": {"price": "$249", "signature": "Bright sparkly", "valence_match": ["happy", "neutral"], "notes": "Bright all-rounder with sparkly treble"},
+    "Simgot EM6L Phoenix": {"price": "$109", "signature": "Smooth warm", "valence_match": ["calm", "neutral"], "notes": "Great resolution, slightly warm but lively"},
+    "Simgot EA500LM": {"price": "$89", "signature": "Warm resolving", "valence_match": ["calm", "happy"], "notes": "Very resolving for price, warmer EA1000"},
+    "Hidizs MP145": {"price": "$159", "signature": "Tame Harman", "valence_match": ["neutral", "calm"], "notes": "Less sharp HeyDay, solid all-rounder"},
+    "TinHifi P1 MAX 2": {"price": "$139", "signature": "Smooth planar", "valence_match": ["neutral", "calm"], "notes": "Less bright Nova, good for jpop/kpop"},
+    "MYER SLA3": {"price": "$100", "signature": "Dynamic engaging", "valence_match": ["neutral", "happy"], "notes": "Dynamic contrast, more engaging than safe picks"},
+    "7hertz Sonus": {"price": "$59", "signature": "Neutral balanced", "valence_match": ["neutral", "calm"], "notes": "Hexa with more air, solid neutral set"},
+    "EPZ Q1 PRO": {"price": "$30", "signature": "Clean balanced", "valence_match": ["neutral", "calm"], "notes": "OG 7hz Zero with better driver"},
+    "ARTTI R2": {"price": "$35", "signature": "Warm balanced", "valence_match": ["calm", "neutral"], "notes": "Budget Tanchjim Origin, very smooth"},
+    "Simgot EW200": {"price": "$39", "signature": "Cheaper Aria 2", "valence_match": ["neutral", "calm"], "notes": "Same driver as Aria 2, great value"},
+    "KZ EDC PRO": {"price": "$22", "signature": "V-shape smooth", "valence_match": ["happy", "neutral"], "notes": "Nicely tuned v-shape, but it's KZ"},
+    "KBear Rosefinch": {"price": "$20", "signature": "Budget basshead", "valence_match": ["happy", "neutral"], "notes": "Best budget basshead, slams like a truck"},
+    "Simgot EW100P": {"price": "$20", "signature": "Clean neutral", "valence_match": ["neutral", "calm"], "notes": "Another Harman/DF, great starter"},
+    "TangZu Waner 2": {"price": "$20", "signature": "Balanced all-rounder", "valence_match": ["neutral", "calm"], "notes": "More treble air than OG, great accessories"},
+    "Moondrop CHU 2": {"price": "$19", "signature": "Harman-ish", "valence_match": ["neutral", "calm"], "notes": "Similar to Tanchjim One but not as smooth"},
+    "Tangzu Wan'er": {"price": "$20", "signature": "Vocal forward", "valence_match": ["happy", "calm"], "notes": "Most vocal forward of $20 sets"},
+    "Truthear Gate": {"price": "$20", "signature": "All-rounder", "valence_match": ["neutral", "calm"], "notes": "Less uppermids than EW100P"},
+    "ZIIGAAT NUO": {"price": "$25", "signature": "Clean Harman", "valence_match": ["neutral", "calm"], "notes": "Similar to G10, heftier note-weight"},
+    "TangZu Wan'er S.G": {"price": "$21", "signature": "Clean vocal", "valence_match": ["neutral", "happy"], "notes": "Cleaner Waner with more vocal emphasis"},
+    "QKZ HBB": {"price": "$20", "signature": "Warm bassy", "valence_match": ["calm", "happy"], "notes": "Well tuned warm/bassy set"}
+  }
+}
