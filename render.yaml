@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: apollodb2
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: 8080

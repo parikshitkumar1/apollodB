@@ -1,43 +1,273 @@
-// removed duplicate early renderReferences/renderAbout; single authoritative versions are defined later in this file
-let API_BASE = (location.search.match(/api=([^&]+)/) || [])[1] || null;
-// Resolve API base dynamically to avoid "Failed to fetch" if frontend port differs from backend
+// API Configuration
+let API_BASE = (location.search.match(/api=([^&]+)/) || [])[1] || '';
+const DEBUG_API = location.search.includes('debug=1');
+
+// API candidate URLs in order of preference
 const apiCandidates = (() => {
   const list = [];
+  
+  // 1. Explicit API URL from query parameter
   const fromQuery = (location.search.match(/api=([^&]+)/) || [])[1];
   if (fromQuery) list.push(fromQuery);
-  // prefer same-origin first if no override
-  list.push(location.origin);
-  // known dev ports
-  list.push('http://127.0.0.1:8765');
-  list.push('http://127.0.0.1:8001');
-  list.push('http://127.0.0.1:8000');
+  
+  // 2. Current origin (for production deployment)
+  if (location.origin.includes('apollodb2-') && location.origin.includes('.run.app')) {
+    list.push(location.origin);
+  }
+  
+  // 3. Common deployment patterns
+  list.push('https://apollodb2-833721505155.us-central1.run.app');
+  
+  // 4. Local development endpoints (last resort)
+  list.push('http://localhost:8080');
+  list.push('http://127.0.0.1:8080');
+  
   return Array.from(new Set(list));
 })();
 
-function probe(url, ms=1500) {
-  return new Promise((resolve) => {
+async function probe(url, attempt = 1, maxAttempts = 3, baseDelay = 1000) {
+  // Normalize URL
+  const baseUrl = url.replace(/\/+$/, '');
+  const endpoint = `${baseUrl}/healthz`;
+  const delay = baseDelay * Math.pow(2, attempt - 1);
+  const debugInfo = [];
+  
+  const log = (...args) => {
+    const message = args.join(' ');
+    debugInfo.push(`[${new Date().toISOString()}] ${message}`);
+    if (DEBUG_API) console.log(`[API]`, ...args);
+  };
+  
+  log(`Probing ${endpoint} (attempt ${attempt}/${maxAttempts})`);
+  
+  try {
     const ctl = new AbortController();
-    const t = setTimeout(() => { ctl.abort(); resolve(false); }, ms);
-    fetch(`${url}/healthz`, { signal: ctl.signal }).then(r => {
-      clearTimeout(t);
-      resolve(r.ok);
-    }).catch(() => { clearTimeout(t); resolve(false); });
-  });
+    const timeout = setTimeout(() => {
+      log(`Request to ${endpoint} timed out after 10s`);
+      ctl.abort();
+    }, 10000);
+    
+    const startTime = performance.now();
+    const response = await fetch(endpoint, { 
+      signal: ctl.signal,
+      headers: { 
+        'Cache-Control': 'no-cache',
+        'X-Request-ID': `frontend-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`
+      },
+      cache: 'no-store',
+      mode: 'cors',
+      credentials: 'same-origin'
+    });
+    const responseTime = Math.round(performance.now() - startTime);
+    
+    clearTimeout(timeout);
+    
+    // Log response headers for debugging
+    const responseHeaders = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+    
+    log(`Response from ${endpoint}: ${response.status} (${response.statusText}) in ${responseTime}ms`);
+    log('Response headers:', JSON.stringify(responseHeaders, null, 2));
+    
+    if (response.ok) {
+      try {
+        const data = await response.json();
+        log(`API health check successful:`, data);
+        return { success: true, debug: debugInfo.join('\n') };
+      } catch (e) {
+        const text = await response.text();
+        log(`Failed to parse JSON response: ${e.message}, response:`, text);
+        throw new Error(`Invalid JSON response: ${text.substring(0, 200)}`);
+      }
+    } else {
+      const errorText = await response.text();
+      log(`API error: ${response.status} ${response.statusText}: ${errorText}`);
+      
+      if (attempt < maxAttempts) {
+        log(`Retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        return probe(url, attempt + 1, maxAttempts, baseDelay);
+      }
+      
+      throw new Error(`API returned ${response.status}: ${errorText}`);
+    }
+  } catch (error) {
+    const errorMessage = error.name === 'AbortError' 
+      ? 'Request timed out' 
+      : error.message || 'Unknown error';
+      
+    log(`Error probing ${endpoint}: ${errorMessage}`);
+    
+    if (attempt < maxAttempts) {
+      log(`Retrying in ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
+      return probe(url, attempt + 1, maxAttempts, baseDelay);
+    }
+    
+    return { 
+      success: false, 
+      error: errorMessage,
+      debug: debugInfo.join('\n')
+    };
+  }
+}
+
+// Debug panel for API connection issues
+function showDebugPanel(debugInfo) {
+  const debugContainer = document.createElement('div');
+  debugContainer.id = 'api-debug';
+  debugContainer.style.cssText = `
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1e1e1e;
+    color: #f0f0f0;
+    padding: 15px;
+    font-family: monospace;
+    max-height: 40vh;
+    overflow: auto;
+    z-index: 10000;
+    border-top: 2px solid #ff4444;
+    font-size: 13px;
+    line-height: 1.4;
+  `;
+  
+  const debugContent = document.createElement('pre');
+  debugContent.textContent = debugInfo;
+  debugContent.style.margin = '0';
+  debugContent.style.whiteSpace = 'pre-wrap';
+  
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.cssText = `
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+  `;
+  closeBtn.onclick = () => debugContainer.remove();
+  
+  debugContainer.appendChild(closeBtn);
+  debugContainer.appendChild(debugContent);
+  document.body.appendChild(debugContainer);
 }
 
 window.apiReady = (async () => {
-  // Always validate the query-provided API_BASE; if unreachable, fall back through candidates
-  const candidates = API_BASE ? [API_BASE, ...apiCandidates.filter(u => u !== API_BASE)] : apiCandidates;
+  const debugLog = [];
+  const log = (...args) => {
+    const message = args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+    
+    const timestamp = new Date().toISOString();
+    debugLog.push(`[${timestamp}] ${message}`);
+    console.log(`[API]`, ...args);
+  };
+  
+  log('Starting API detection...');
+  log('Location:', window.location.href);
+  log('API candidates:', apiCandidates);
+  
+  // Check if we have a direct API URL in the query string
+  const urlParams = new URLSearchParams(window.location.search);
+  const apiParam = urlParams.get('api');
+  
+  // Build the list of candidates to try
+  const candidates = [];
+  if (apiParam) {
+    candidates.push(apiParam);
+    log(`Using API from URL parameter: ${apiParam}`);
+  }
+  
+  // Add other candidates, avoiding duplicates
+  for (const candidate of apiCandidates) {
+    if (!candidates.includes(candidate)) {
+      candidates.push(candidate);
+    }
+  }
+  
+  log('Testing API endpoints in order:', candidates);
+  
+  let lastError = null;
+  
   for (const base of candidates) {
     try {
-      // basic sanity: must start with http
-      if (!/^https?:\/\//i.test(base)) continue;
-      const ok = await probe(base);
-      if (ok) { API_BASE = base; setStatus?.(`Connected to API: ${API_BASE}`); return true; }
-    } catch {}
+      // Basic URL validation
+      if (!/^https?:\/\//i.test(base)) {
+        log(`Skipping invalid URL: ${base}`);
+        continue;
+      }
+      
+      log(`\n--- Testing API endpoint: ${base} ---`);
+      
+      const result = await probe(base);
+      
+      if (result.success) {
+        API_BASE = base.endsWith('/') ? base.slice(0, -1) : base;
+        log(`✅ Successfully connected to API: ${API_BASE}`);
+        
+        // Store the working API in localStorage for next time
+        try {
+          localStorage.setItem('lastWorkingApi', API_BASE);
+        } catch (e) {
+          log('Could not save API to localStorage:', e.message);
+        }
+        
+        setStatus?.(`Connected to API: ${API_BASE}`);
+        return true;
+      } else {
+        log(`❌ API check failed: ${result.error || 'Unknown error'}`);
+        lastError = result.error;
+      }
+    } catch (error) {
+      log(`❌ Error checking API at ${base}:`, error.message);
+      lastError = error.message;
+    }
   }
-  setStatus?.('No backend API detected. Please start the server or set ?api=URL');
-  throw new Error('No backend API available');
+  
+  // If we get here, all API endpoints failed
+  const errorDetails = [
+    'No backend API could be reached. Please check the following:',
+    '',
+    '1. Ensure the backend server is running',
+    '2. Check your internet connection',
+    '3. Try refreshing the page',
+    '',
+    'You can also:',
+    '• Add ?api=YOUR_BACKEND_URL to manually specify the API endpoint',
+    '• Add ?debug=1 to enable detailed logging',
+    '',
+    'Last error:',
+    lastError || 'Unknown error',
+    '',
+    'Debug information:',
+    ...debugLog
+  ].join('\n');
+  
+  console.error('API connection failed. Debug info:', errorDetails);
+  
+  // Show debug panel if in debug mode
+  if (DEBUG_API) {
+    showDebugPanel(errorDetails);
+  }
+  
+  setStatus?.(`Error: Could not connect to backend API. ${DEBUG_API ? 'See debug console for details.' : 'Add ?debug=1 to the URL for more information.'}`);
+  
+  // Don't throw an error here, as it might prevent the UI from loading
+  // Instead, we'll handle the error gracefully in the UI
+  return false;
 })();
 
 const qs = (sel, root=document) => root.querySelector(sel);

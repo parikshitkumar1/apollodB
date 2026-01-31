@@ -1,29 +1,47 @@
-from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-from typing import List, Optional, Dict, Any
+import os
 import io 
 import base64
 import zipfile
 import datetime
 import uvicorn
-import os
+import logging
 import tempfile
 import json
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 # Import the new classifier
 from backend.inference_classifier import MusicEmotionPredictor
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="ApollodB Backend", version="1.0.0")
 
+# Enhanced CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all headers to the client
 )
+
+# Add middleware to log incoming requests
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url}")
+    logger.info(f"Headers: {dict(request.headers)}")
+    response = await call_next(request)
+    logger.info(f"Response status: {response.status_code}")
+    return response
 
 # Load model once
 predictor: Optional[MusicEmotionPredictor] = None
@@ -60,70 +78,109 @@ def _write_temp(contents: bytes, filename: str) -> str:
         f.write(contents)
         return f.name
 
+def get_predictor():
+    """Lazy load the predictor to save memory."""
+    global predictor
+    if predictor is None:
+        try:
+            predictor = MusicEmotionPredictor(
+                model_path=MODEL_CONFIG['model_path'],
+                labels_path=MODEL_CONFIG['labels_path'],
+                scaler_mean_path=MODEL_CONFIG['scaler_mean_path'],
+                scaler_scale_path=MODEL_CONFIG['scaler_scale_path']
+            )
+            print("Model loaded successfully")
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            predictor = None
+            raise
+    return predictor
+
 @app.on_event("startup")
 async def startup_event():
-    global predictor
+    """Initialize the predictor on startup."""
     try:
-        predictor = MusicEmotionPredictor(
-            model_path=MODEL_CONFIG['model_path'],
-            labels_path=MODEL_CONFIG['labels_path'],
-            scaler_mean_path=MODEL_CONFIG['scaler_mean_path'],
-            scaler_scale_path=MODEL_CONFIG['scaler_scale_path']
-        )
-        print("Model loaded successfully")
+        # Just verify we can load the predictor, but don't keep it in memory
+        pred = get_predictor()
+        # Clean up immediately to save memory
+        pred.cleanup()
+        print("Model verified successfully")
     except Exception as e:
-        print(f"Error loading model: {e}")
+        print(f"Error initializing model: {e}")
         raise
 
 @app.post("/analyze-single")
 async def analyze_single(
+    request: Request,
     file: UploadFile = File(...),
     aggression: float = Form(0.5),
     eq_style: str = Form("Wavelet")
 ):
-    data = await file.read()
-    if _too_large(len(data)):
-        return JSONResponse(status_code=413, content={"error": "File too large (limit 100MB)"})
-    if _bad_mime(file.content_type):
-        return JSONResponse(status_code=415, content={"error": "Unsupported media type. Please upload audio files."})
+    predictor = None
+    temp_file = None
     
-    # Write to temporary file
-    tmp_path = _write_temp(data, file.filename or "audio.wav")
     try:
-        # Get prediction from the model
-        r = predictor.predict_emotion(tmp_path)
+        # Get predictor instance
+        predictor = get_predictor()
+        
+        # Check file size and type
+        file_contents = await file.read()
+        if _too_large(len(file_contents)):
+            raise HTTPException(status_code=413, detail=f"File too large. Max size is {MAX_UPLOAD_BYTES} bytes")
+        
+        if _bad_mime(file.content_type):
+            raise HTTPException(status_code=400, detail=f"Invalid file type: {file.content_type}")
+        
+        # Save to temp file
+        temp_file = _write_temp(file_contents, file.filename or "audio")
+        
+        # Get prediction
+        result = predictor.predict_emotion(temp_file)
+        
+        # Generate EQ curves
         eq = predictor.generate_eq_curves(
-            r.get("primary_emotion") or r.get("emotion"),
+            result.get("primary_emotion") or result.get("emotion"),
             aggression,
-            valence=r.get("valence"),
-            arousal=r.get("arousal"),
-            confidence=r.get("confidence"),
-            secondary=r.get("secondary_emotion"),
+            valence=result.get("valence"),
+            arousal=result.get("arousal"),
+            confidence=result.get("confidence"),
+            secondary=result.get("secondary_emotion"),
         )
+        
         response = {
             "emotion": {
-                "primary_emotion": r.get("primary_emotion") or r.get("emotion"),
-                "secondary_emotion": r.get("secondary_emotion"),
-                "valence": float(r.get("valence", 0.5)),
-                "arousal": float(r.get("arousal", 0.5)),
-                "confidence": float(r.get("confidence", 0.0)),
-                "probabilities": r.get("probabilities", {}),
+                "primary_emotion": result.get("primary_emotion") or result.get("emotion"),
+                "secondary_emotion": result.get("secondary_emotion"),
+                "valence": float(result.get("valence", 0.5)),
+                "arousal": float(result.get("arousal", 0.5)),
+                "confidence": float(result.get("confidence", 0.0)),
+                "probabilities": result.get("probabilities", {}),
             },
             "eq_data": eq,
             "eq_style": eq_style,
             "aggression": aggression,
         }
+        
         return response
         
     except Exception as e:
-        import traceback
-        print(f"Error in analyze-single: {e}")
-        print(traceback.format_exc())
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Error processing audio: {str(e)}"}
-        )
+        logger.error(f"Error in analyze_single: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+        
     finally:
+        # Clean up temp file
+        if temp_file and os.path.exists(temp_file):
+            try:
+                os.unlink(temp_file)
+            except Exception as e:
+                logger.warning(f"Failed to delete temp file {temp_file}: {str(e)}")
+        
+        # Clean up predictor to free memory
+        if predictor:
+            try:
+                predictor.cleanup()
+            except Exception as e:
+                logger.warning(f"Error cleaning up predictor: {str(e)}")
         try:
             os.unlink(tmp_path)
         except Exception as e:
@@ -350,6 +407,7 @@ async def spectrogram(file: UploadFile = File(...)):
 
 @app.get("/healthz")
 async def healthz():
+    logger.info("Health check endpoint called")
     return {"status": "ok", "version": app.version}
 
 
@@ -481,19 +539,33 @@ async def apply_eq_batch_zip(
     return StreamingResponse(buf, media_type='application/zip', headers=headers)
 
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8080"))
-    uvicorn.run("backend.server:app", host="0.0.0.0", port=port, reload=False)
-
-# Mount static site under /app to avoid shadowing API routes
-app.mount("/app", StaticFiles(directory="web", html=True), name="app")
-
-# Serve index explicitly at root
+# Serve index.html at root
 @app.get("/")
 async def root_index():
     return FileResponse("web/index.html")
 
-# Convenience: also serve /index.html
+# Serve index.html at /index.html
 @app.get("/index.html")
 async def index_html():
     return FileResponse("web/index.html")
+
+# Serve static files from /static
+app.mount("/static", StaticFiles(directory="web"), name="static")
+
+# Add a catch-all route to serve the frontend app
+@app.get("/{full_path:path}")
+async def catch_all(request: Request, full_path: str):
+    # Try to serve the file if it exists
+    file_path = Path("web") / full_path
+    if file_path.is_file():
+        return FileResponse(file_path)
+    # Otherwise serve index.html for SPA routing
+    return FileResponse("web/index.html")
+
+
+# Ensure all routes are defined before this point
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", "8080"))
+    logger.info(f"Starting server on port {port}")
+    uvicorn.run("backend.server:app", host="0.0.0.0", port=port, reload=False)

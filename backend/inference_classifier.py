@@ -85,26 +85,72 @@ class MusicEmotionClassifier(nn.Module):
 class MusicEmotionPredictor:
     def __init__(self, model_path: str, labels_path: str, scaler_mean_path: str, scaler_scale_path: str, device: str = None):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.model_path = model_path
+        self.labels_path = labels_path
+        self.scaler_mean_path = scaler_mean_path
+        self.scaler_scale_path = scaler_scale_path
         
-        # Load labels
-        with open(labels_path, 'r') as f:
-            self.labels = json.load(f)
-        self.num_classes = len(self.labels)
+        # Initialize attributes that will be loaded lazily
+        self._model = None
+        self._labels = None
+        self._scaler_mean = None
+        self._scaler_scale = None
         
-        # Load scaler parameters
-        self.scaler_mean = np.load(scaler_mean_path)
-        self.scaler_scale = np.load(scaler_scale_path)
+        # Add va_lut for compatibility with inference.py
+        self.va_lut = [
+            {"v": 0.2, "a": 0.2, "g": {"sub": 0.0, "bass": -0.5, "low_mids": 0.5, "mids": 0.5, "presence": -0.5, "brilliance": -0.5}},
+            {"v": 0.8, "a": 0.2, "g": {"sub": 1.0, "bass": 1.5, "low_mids": -0.5, "mids": -0.5, "presence": 0.5, "brilliance": 0.5}},
+            {"v": 0.2, "a": 0.8, "g": {"sub": -0.5, "bass": 0.0, "low_mids": -0.5, "mids": 0.5, "presence": 1.5, "brilliance": 1.0}},
+            {"v": 0.8, "a": 0.8, "g": {"sub": 0.5, "bass": 1.0, "low_mids": -0.5, "mids": 0.0, "presence": 1.0, "brilliance": 1.0}},
+            {"v": 0.5, "a": 0.5, "g": {"sub": 0.0, "bass": 0.0, "low_mids": 0.0, "mids": 0.0, "presence": 0.0, "brilliance": 0.0}},
+        ]
+    
+    @property
+    def model(self):
+        if self._model is None:
+            # Load labels first to get num_classes
+            with open(self.labels_path, 'r') as f:
+                self._labels = json.load(f)
+            
+            # Initialize and load model
+            self._model = MusicEmotionClassifier(input_dim=N_MELS, num_classes=len(self._labels)).to(self.device)
+            state_dict = torch.load(self.model_path, map_location=self.device)
+            self._model.load_state_dict(state_dict)
+            self._model.eval()
+            
+            print(f"Loaded model with {sum(p.numel() for p in self._model.parameters())} parameters")
+            print(f"Available emotion classes: {self._labels}")
+        return self._model
+    
+    @property
+    def labels(self):
+        if self._labels is None:
+            with open(self.labels_path, 'r') as f:
+                self._labels = json.load(f)
+        return self._labels
+    
+    @property
+    def scaler_mean(self):
+        if self._scaler_mean is None:
+            self._scaler_mean = np.load(self.scaler_mean_path)
+        return self._scaler_mean
+    
+    @property
+    def scaler_scale(self):
+        if self._scaler_scale is None:
+            self._scaler_scale = np.load(self.scaler_scale_path)
+        return self._scaler_scale
+    
+    def cleanup(self):
+        """Free up memory by deleting the model and other large objects."""
+        if self._model is not None:
+            del self._model
+            self._model = None
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
         
-        # Initialize model
-        self.model = MusicEmotionClassifier(input_dim=N_MELS, num_classes=self.num_classes).to(self.device)
-        
-        # Load weights
-        state_dict = torch.load(model_path, map_location=self.device)
-        self.model.load_state_dict(state_dict)
-        self.model.eval()
-        
-        print(f"Loaded model with {sum(p.numel() for p in self.model.parameters())} parameters")
-        print(f"Available emotion classes: {self.labels}")
+        self._labels = None
+        self._scaler_mean = None
+        self._scaler_scale = None
     
     def _extract_features(self, audio_path: str) -> np.ndarray:
         """Extract log-mel spectrogram features."""
