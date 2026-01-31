@@ -275,9 +275,7 @@ const qs = (sel, root=document) => root.querySelector(sel);
 const qsa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 
 const state = {
-  mode: 'single',
-  singleFile: null,
-  batchFiles: [],
+  files: [],  // unified file list - single or multiple
   lastSingle: null,
   lastBatch: null,
   config: null,
@@ -375,19 +373,14 @@ function switchTab(tab) {
   }
   // Focus analysis controls when switching back
   if (tab === 'analysis') {
-    const f = qs('#single-file') || qs('#batch-files');
+    const f = qs('#audio-files');
     if (f) f.focus({ preventScroll: true });
   }
   // Reset scroll so hidden sections don't peek through
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
 }
 
-function switchMode() {
-  state.mode = qsa('input[name="mode"]').find(r => r.checked).value;
-  qs('#upload-single').style.display = state.mode === 'single' ? '' : 'none';
-  qs('#upload-batch').style.display = state.mode === 'batch' ? '' : 'none';
-  qs('#results').style.display = 'none';
-}
+// No longer needed - unified upload handles both single and batch
 
 function parseWavelet(eqStr) {
   // "GraphicEQ: 20 0.0; 21 0.1; ..."
@@ -403,47 +396,58 @@ function parseWavelet(eqStr) {
 }
 
 function renderVA(el, valence, arousal, emotion=null) {
+  // Unified color scheme: cyan primary, pink accent
+  const accentCyan = '#00bcd4';
+  const accentPink = '#ff6fae';
   const shapes = [
-    // quadrants
-    { type: 'rect', x0: 0, y0: 0, x1: 0.5, y1: 0.5, fillcolor: 'rgba(255,0,0,0.1)', line: {color:'rgba(255,0,0,0.3)'} },
-    { type: 'rect', x0: 0.5, y0: 0, x1: 1, y1: 0.5, fillcolor: 'rgba(0,255,0,0.1)', line: {color:'rgba(0,255,0,0.3)'} },
-    { type: 'rect', x0: 0, y0: 0.5, x1: 0.5, y1: 1, fillcolor: 'rgba(255,255,0,0.1)', line: {color:'rgba(255,255,0,0.3)'} },
-    { type: 'rect', x0: 0.5, y0: 0.5, x1: 1, y1: 1, fillcolor: 'rgba(255,165,0,0.1)', line: {color:'rgba(255,165,0,0.3)'} },
+    // Subtle quadrant backgrounds with consistent opacity
+    { type: 'rect', x0: 0, y0: 0.5, x1: 0.5, y1: 1, fillcolor: 'rgba(255,111,174,0.08)', line: {color:'rgba(255,111,174,0.2)', width:1} },
+    { type: 'rect', x0: 0.5, y0: 0.5, x1: 1, y1: 1, fillcolor: 'rgba(0,188,212,0.08)', line: {color:'rgba(0,188,212,0.2)', width:1} },
+    { type: 'rect', x0: 0, y0: 0, x1: 0.5, y1: 0.5, fillcolor: 'rgba(255,255,255,0.03)', line: {color:'rgba(255,255,255,0.1)', width:1} },
+    { type: 'rect', x0: 0.5, y0: 0, x1: 1, y1: 0.5, fillcolor: 'rgba(158,233,243,0.06)', line: {color:'rgba(158,233,243,0.15)', width:1} },
   ];
   const ref = { happy:[0.8,0.8], sad:[0.2,0.2], calm:[0.8,0.2], neutral:[0.5,0.5] };
   const refTraces = Object.entries(ref).map(([emo,[x,y]]) => ({
-    x:[x], y:[y], mode:'markers+text', text:[emo[0].toUpperCase()+emo.slice(1)], textposition:'top center',
-    marker:{ size: emo===emotion?15:8, color: emo===emotion?'#00bcd4':'#666' }, showlegend:false
+    x:[x], y:[y], mode:'markers+text', text:[emo[0].toUpperCase()+emo.slice(1)], 
+    textposition: emo==='happy'?'top right' : emo==='sad'?'bottom left' : emo==='calm'?'bottom right' : 'top left',
+    textfont: { color: emo===emotion ? accentPink : 'rgba(255,255,255,0.6)', size: 11 },
+    marker:{ size: emo===emotion?14:7, color: emo===emotion? accentPink :'rgba(255,255,255,0.4)', 
+             line: { color: 'rgba(255,255,255,0.3)', width: 1 } }, 
+    showlegend:false, hoverinfo:'text', hovertext:emo
   }));
   const data = [
     ...refTraces,
-    { x:[valence], y:[arousal], mode:'markers', marker:{ size:20, color:'#00bcd4', symbol:'star' }, name:'Your Music' }
+    { x:[valence], y:[arousal], mode:'markers', 
+      marker:{ size:18, color: accentCyan, symbol:'star', line:{color:'#fff', width:2} }, 
+      name:'Your Track', hoverinfo:'text', hovertext:`V: ${valence.toFixed(2)}, A: ${arousal.toFixed(2)}` }
   ];
   const layout = {
-    title: 'Valence-Arousal Space',
-    xaxis: { range:[0,1], gridcolor:'#333', title:'Valence (Negativity ← → Positivity)' },
-    yaxis: { range:[0,1], gridcolor:'#333', title:'Arousal (Low Energy ← → High Energy)' },
-    paper_bgcolor:'#1a1a1a', plot_bgcolor:'#1a1a1a', font:{ color:'#fff' }, shapes,
-    annotations: [
-      {x:0.25,y:0.75,text:'INTENSE\nLow Valence\nHigh Arousal',showarrow:false, font:{color:'#fff',size:12}},
-      {x:0.75,y:0.75,text:'HAPPY\nHigh Valence\nHigh Arousal',showarrow:false, font:{color:'#fff',size:12}},
-      {x:0.25,y:0.25,text:'SAD\nLow Valence\nLow Arousal',showarrow:false, font:{color:'#fff',size:12}},
-      {x:0.75,y:0.25,text:'CALM\nHigh Valence\nLow Arousal',showarrow:false, font:{color:'#fff',size:12}},
-    ]
+    title: { text: 'Valence-Arousal Space', font: { size: 14, color: 'rgba(255,255,255,0.9)' } },
+    xaxis: { range:[-0.02,1.02], gridcolor:'rgba(255,255,255,0.08)', zeroline:false,
+             title: { text: 'Valence →', font: { size: 11, color: 'rgba(255,255,255,0.6)' } },
+             tickfont: { size: 10, color: 'rgba(255,255,255,0.5)' } },
+    yaxis: { range:[-0.02,1.02], gridcolor:'rgba(255,255,255,0.08)', zeroline:false,
+             title: { text: 'Arousal →', font: { size: 11, color: 'rgba(255,255,255,0.6)' } },
+             tickfont: { size: 10, color: 'rgba(255,255,255,0.5)' } },
+    paper_bgcolor:'transparent', plot_bgcolor:'rgba(10,14,18,0.6)', 
+    font:{ color:'#fff', family:'Inter, system-ui, sans-serif' }, shapes,
+    margin: { l: 50, r: 20, t: 40, b: 45 },
+    showlegend: false
   };
-  Plotly.newPlot(el, data, layout, {responsive:true}).then(() => {
+  Plotly.newPlot(el, data, layout, {responsive:true, displayModeBar:false}).then(() => {
     try { Plotly.Plots.resize(el); } catch {}
   });
 }
 
 function renderEQ(elChart, elText, eqData, emotion) {
+  const accentCyan = '#00bcd4';
+  const accentPink = '#ff6fae';
   const { freqs, gains } = parseWavelet(eqData.wavelet);
   // Parse parametric markers from text if available
   const markers = [];
   if (eqData && typeof eqData.parametric === 'string' && eqData.parametric.trim() && eqData.parametric !== 'Flat') {
     const lines = eqData.parametric.split(/\n+/).filter(Boolean);
     for (const line of lines) {
-      // e.g., "Peaking 4000 Hz: +2.5 dB, Q=1.20" or "LowShelf 120 Hz: -1.0 dB, Q=0.70"
       const m = line.match(/^(\w+)\s+(\d+)\s*Hz:\s*([+\-]?[0-9.]+)\s*dB.*Q\s*=\s*([0-9.]+)/i);
       if (m) {
         const [, type, fc, gain, q] = m;
@@ -452,63 +456,93 @@ function renderEQ(elChart, elText, eqData, emotion) {
     }
   }
   const traces = [
-    { x: freqs, y: gains, mode:'lines+markers', line:{color:'#00bcd4', width:3}, marker:{size:4, color:'#00bcd4'}, name:`${emotion} EQ` }
+    { x: freqs, y: gains, mode:'lines', 
+      line:{ color: accentCyan, width: 2.5, shape: 'spline' }, 
+      fill: 'tozeroy', fillcolor: 'rgba(0,188,212,0.1)',
+      name: `${emotion} EQ`, hoverinfo: 'x+y' }
   ];
   if (markers.length) {
     traces.push({
-      x: markers.map(m=>m.fc), y: markers.map(m=>m.gain), mode:'markers+text',
-      marker:{ size:8, color:'#ff6ec7', symbol:'x' }, text: markers.map(m=>m.type), textposition:'top center', name:'Param Bands'
+      x: markers.map(m=>m.fc), y: markers.map(m=>m.gain), mode:'markers',
+      marker:{ size:10, color: accentPink, symbol:'diamond', line:{color:'#fff', width:1} }, 
+      name:'Bands', hoverinfo:'text', hovertext: markers.map(m=>`${m.type} ${m.fc}Hz`)
     });
   }
   Plotly.newPlot(elChart, traces, {
-    title: `Your Personalized EQ Curve`,
-    xaxis:{ type:'log', gridcolor:'#333', title:'Frequency (Hz)' },
-    yaxis:{ gridcolor:'#333', title:'Gain (dB)' },
-    paper_bgcolor:'#1a1a1a', plot_bgcolor:'#1a1a1a', font:{color:'#fff'},
-  }, {responsive:true}).then(() => {
+    title: { text: 'EQ Curve', font: { size: 14, color: 'rgba(255,255,255,0.9)' } },
+    xaxis:{ type:'log', gridcolor:'rgba(255,255,255,0.08)', zeroline:false,
+            title: { text: 'Frequency (Hz)', font: { size: 11, color: 'rgba(255,255,255,0.6)' } },
+            tickfont: { size: 10, color: 'rgba(255,255,255,0.5)' } },
+    yaxis:{ gridcolor:'rgba(255,255,255,0.08)', zeroline:true, zerolinecolor:'rgba(255,255,255,0.2)',
+            title: { text: 'Gain (dB)', font: { size: 11, color: 'rgba(255,255,255,0.6)' } },
+            tickfont: { size: 10, color: 'rgba(255,255,255,0.5)' } },
+    paper_bgcolor:'transparent', plot_bgcolor:'rgba(10,14,18,0.6)', 
+    font:{ color:'#fff', family:'Inter, system-ui, sans-serif' },
+    margin: { l: 55, r: 20, t: 40, b: 45 },
+    showlegend: false
+  }, {responsive:true, displayModeBar:false}).then(() => {
     try { Plotly.Plots.resize(elChart); } catch {}
   });
   elText.textContent = eqData.wavelet;
 }
 
 function updateEqView(style, elChart, elText, eqData, emotion) {
-  // Update text body and marker visibility based on style selection
+  const accentCyan = '#00bcd4';
+  const accentPink = '#ff6fae';
   const val = String(style || 'Wavelet');
   if (val === 'Parametric') {
     elText.textContent = eqData.parametric || 'Flat';
   } else {
-    // Wavelet and Graphic fall back to the dense GraphicEQ string
     elText.textContent = eqData.wavelet || '';
   }
-  // Re-render chart with or without param markers depending on style
   const { freqs, gains } = parseWavelet(eqData.wavelet || '');
-  const traces = [{ x: freqs, y: gains, mode:'lines+markers', line:{color:'#00bcd4', width:3}, marker:{size:4, color:'#00bcd4'}, name:`${emotion} EQ` }];
-  if (val === 'Parametric') {
-    // Add param markers if available
-    if (eqData && typeof eqData.parametric === 'string' && eqData.parametric.trim() && eqData.parametric !== 'Flat') {
-      const lines = eqData.parametric.split(/\n+/).filter(Boolean);
-      const markers = [];
-      for (const line of lines) {
-        const m = line.match(/^(\w+)\s+(\d+)\s*Hz:\s*([+\-]?[0-9.]+)\s*dB.*Q\s*=\s*([0-9.]+)/i);
-        if (m) {
-          const [, type, fc, gain] = m;
-          markers.push({ fc: Number(fc), gain: Number(gain), type });
-        }
-      }
-      if (markers.length) {
-        traces.push({ x: markers.map(m=>m.fc), y: markers.map(m=>m.gain), mode:'markers+text', marker:{ size:8, color:'#ff6ec7', symbol:'x' }, text: markers.map(m=>m.type), textposition:'top center', name:'Param Bands' });
-      }
+  const traces = [{ x: freqs, y: gains, mode:'lines', 
+    line:{ color: accentCyan, width: 2.5, shape: 'spline' }, 
+    fill: 'tozeroy', fillcolor: 'rgba(0,188,212,0.1)',
+    name:`${emotion} EQ` }];
+  if (val === 'Parametric' && eqData?.parametric?.trim() && eqData.parametric !== 'Flat') {
+    const lines = eqData.parametric.split(/\n+/).filter(Boolean);
+    const markers = [];
+    for (const line of lines) {
+      const m = line.match(/^(\w+)\s+(\d+)\s*Hz:\s*([+\-]?[0-9.]+)\s*dB.*Q\s*=\s*([0-9.]+)/i);
+      if (m) markers.push({ fc: Number(m[2]), gain: Number(m[3]), type: m[1] });
+    }
+    if (markers.length) {
+      traces.push({ x: markers.map(m=>m.fc), y: markers.map(m=>m.gain), mode:'markers',
+        marker:{ size:10, color: accentPink, symbol:'diamond', line:{color:'#fff', width:1} }, 
+        name:'Bands' });
     }
   }
-  Plotly.newPlot(elChart, traces, { title: `Your Personalized EQ Curve`, xaxis:{ type:'log', gridcolor:'#333', title:'Frequency (Hz)' }, yaxis:{ gridcolor:'#333', title:'Gain (dB)' }, paper_bgcolor:'#1a1a1a', plot_bgcolor:'#1a1a1a', font:{color:'#fff'} }, {responsive:true}).then(() => { try { Plotly.Plots.resize(elChart); } catch {} });
+  Plotly.newPlot(elChart, traces, {
+    title: { text: 'EQ Curve', font: { size: 14, color: 'rgba(255,255,255,0.9)' } },
+    xaxis:{ type:'log', gridcolor:'rgba(255,255,255,0.08)', zeroline:false,
+            title: { text: 'Frequency (Hz)', font: { size: 11, color: 'rgba(255,255,255,0.6)' } },
+            tickfont: { size: 10, color: 'rgba(255,255,255,0.5)' } },
+    yaxis:{ gridcolor:'rgba(255,255,255,0.08)', zeroline:true, zerolinecolor:'rgba(255,255,255,0.2)',
+            title: { text: 'Gain (dB)', font: { size: 11, color: 'rgba(255,255,255,0.6)' } },
+            tickfont: { size: 10, color: 'rgba(255,255,255,0.5)' } },
+    paper_bgcolor:'transparent', plot_bgcolor:'rgba(10,14,18,0.6)', 
+    font:{ color:'#fff', family:'Inter, system-ui, sans-serif' },
+    margin: { l: 55, r: 20, t: 40, b: 45 }, showlegend: false
+  }, {responsive:true, displayModeBar:false}).then(() => { try { Plotly.Plots.resize(elChart); } catch {} });
 }
 
 function renderDist(el, dist) {
   const labels = Object.keys(dist);
   const values = Object.values(dist);
-  Plotly.newPlot(el, [{type:'pie', labels, values, hole:0.4, marker:{ line:{color:'#000', width:2}}}], {
-    title: 'Emotion Distribution', paper_bgcolor:'#1a1a1a', plot_bgcolor:'#1a1a1a', font:{color:'#fff'},
-  }, {responsive:true}).then(() => {
+  // Unified color palette: cyan to pink gradient
+  const colors = ['#00bcd4', '#33d1e3', '#9ee9f3', '#ffd1e5', '#ff6fae'];
+  Plotly.newPlot(el, [{type:'pie', labels, values, hole:0.45, 
+    marker:{ colors: colors, line:{color:'rgba(10,14,18,0.8)', width:2} },
+    textfont: { color: '#fff', size: 11 },
+    hoverinfo: 'label+percent'
+  }], {
+    title: { text: 'Emotion Distribution', font: { size: 14, color: 'rgba(255,255,255,0.9)' } },
+    paper_bgcolor:'transparent', plot_bgcolor:'transparent', 
+    font:{ color:'#fff', family:'Inter, system-ui, sans-serif' },
+    margin: { l: 20, r: 20, t: 40, b: 20 },
+    showlegend: true, legend: { font: { color: 'rgba(255,255,255,0.7)', size: 10 } }
+  }, {responsive:true, displayModeBar:false}).then(() => {
     try { Plotly.Plots.resize(el); } catch {}
   });
 }
@@ -523,7 +557,7 @@ function downloadText(filename, text) {
 }
 
 async function analyzeSingle() {
-  const file = state.singleFile;
+  const file = state.files[0];
   if (!file) { setStatus('Please select an audio file.'); return; }
   const btn = qs('#analyze-btn');
   if (btn) btn.disabled = true;
@@ -583,103 +617,11 @@ function renderSingleResult(file, data) {
 
   // Download EQ text
   qs('#download-eq-text').addEventListener('click', () => {
-    downloadText(`eq_${r.primary_emotion}_wavelet.txt`, data.eq_data.wavelet);
+    const style = qs('#eq-style')?.value || 'Wavelet';
+    let content = data.eq_data.wavelet;
+    if (style === 'Parametric' && data.eq_data.parametric) content = data.eq_data.parametric;
+    downloadText(`eq_${r.primary_emotion}_${style.toLowerCase()}.txt`, content);
   });
-
-  // Download EQed audio
-  const dlBtn = qs('#download-eq-audio');
-  (async () => {
-    try {
-      setStatus('Rendering EQed audio (single)...');
-      dlBtn.disabled = true; dlBtn.textContent = 'Rendering EQed Audio...';
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('emotion', r.primary_emotion);
-      fd.append('aggression', qs('#agg').value);
-      if (typeof r.confidence === 'number') fd.append('confidence', String(r.confidence));
-      // Macros
-      const warmth = Number(qs('#warmth')?.value || 0);
-      const presence = Number(qs('#presence')?.value || 0);
-      const air = Number(qs('#air')?.value || 0);
-      fd.append('warmth', String(warmth));
-      fd.append('presence', String(presence));
-      fd.append('air', String(air));
-      const hq = !!qs('#hq-linear')?.checked;
-      fd.append('hq_linear', String(hq));
-      let resp = await fetch(`${API_BASE}/apply-eq`, { method:'POST', body: fd });
-      if (!resp.ok) {
-        const t = await resp.text().catch(()=>' ');
-        console.error('apply-eq failed:', resp.status, t);
-        // one retry
-        resp = await fetch(`${API_BASE}/apply-eq`, { method:'POST', body: fd });
-        if (!resp.ok) {
-          const t2 = await resp.text().catch(()=>' ');
-          throw new Error(`apply-eq failed: ${resp.status} ${t2}`);
-        }
-      }
-      // capture stats from headers if provided
-      const lufs = resp.headers.get('X-LUFS');
-      const dbtp = resp.headers.get('X-True-Peak-DBTP');
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const fname = `eqed_${r.primary_emotion}_${(file.name||'audio').split('.')[0]}.wav`;
-      // Replace button with a direct anchor for robust downloads
-      const a = document.createElement('a');
-      a.className = dlBtn.className || '';
-      a.textContent = 'Download EQed Audio (Ready)';
-      a.href = url; a.download = fname; a.role = 'button';
-      a.style.display = 'inline-block';
-      const wrap = document.createElement('div');
-      wrap.style.display = 'flex'; wrap.style.gap = '8px'; wrap.style.alignItems = 'center';
-      const stats = document.createElement('span');
-      stats.className = 'muted small';
-      if (lufs || dbtp) {
-        const parts = [];
-        if (lufs) parts.push(`LUFS ${Number(lufs).toFixed(1)}`);
-        if (dbtp) parts.push(`dBTP ${Number(dbtp).toFixed(2)}`);
-        stats.textContent = `[${parts.join(', ')}]`;
-      }
-      wrap.appendChild(a);
-      if (stats.textContent) wrap.appendChild(stats);
-      dlBtn.replaceWith(wrap);
-      setStatus('');
-    } catch (e) {
-      dlBtn.disabled = false; dlBtn.textContent = 'Download EQed Audio';
-      console.error(e);
-      setStatus('Failed to render EQed audio. Please try again with a different file or lower aggression.');
-    }
-  })();
-
-  // Spectrogram: auto-generate and show in bottom-right card
-  (async () => {
-    try {
-      const fd = new FormData(); fd.append('file', file);
-      const resp = await fetch(`${API_BASE}/spectrogram`, { method:'POST', body: fd });
-      if (!resp.ok) return; // fail silently
-      const { image_base64 } = await resp.json();
-      const card = qs('#spectro-card');
-      const img = qs('#spec-img');
-      if (img && image_base64) {
-        // Download-only: do not display spectrogram inline
-        if (card) card.style.display = '';
-        img.style.display = 'none';
-        const btn = qs('#download-spectrogram');
-        if (btn) {
-          btn.style.display = '';
-          btn.textContent = 'Download Spectrogram (PNG)';
-          btn.onclick = () => {
-            const a = document.createElement('a');
-            a.href = image_base64; a.download = `spectrogram_${(file.name||'audio').split('.')[0]}.png`;
-            a.click();
-          };
-        }
-      }
-    } catch (_) { /* ignore */ }
-  })();
-
-  // Spotify
-  const q = encodeURIComponent(`${r.primary_emotion} mix`);
-  qs('#spotify-link').href = `https://open.spotify.com/search/${q}`;
 
   // EQ export buttons (single)
   const exportApo = qs('#export-apo');
@@ -711,7 +653,7 @@ function renderSingleResult(file, data) {
 }
 
 async function analyzeBatch() {
-  const files = state.batchFiles;
+  const files = state.files;
   if (!files.length) { setStatus('Please select audio files.'); return; }
   const btn = qs('#analyze-btn');
   if (btn) btn.disabled = true;
@@ -977,8 +919,6 @@ function wireUI() {
   }));
   switchTab('analysis');
 
-  qsa('input[name="mode"]').forEach(r => r.addEventListener('change', switchMode));
-  switchMode();
   qs('#agg').addEventListener('input', () => qs('#agg-val').textContent = qs('#agg').value);
   // Make macro sliders reactive on input as well
   ['#warmth', '#presence', '#air'].forEach(sel => {
@@ -990,31 +930,51 @@ function wireUI() {
     });
   });
 
-  qs('#single-file').addEventListener('change', e => { state.singleFile = e.target.files[0] || null; });
-  qs('#batch-files').addEventListener('change', e => { state.batchFiles = Array.from(e.target.files); });
-
-  // Drag & Drop support
-  function wireDrop(zoneSel, inputSel, isBatch=false) {
-    const zone = qs(zoneSel);
-    const input = qs(inputSel);
-    if (!zone || !input) return;
-    ['dragenter','dragover'].forEach(evt => zone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover'); }));
-    ;['dragleave','drop'].forEach(evt => zone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover'); }));
-    zone.addEventListener('drop', (e) => {
-      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/'));
-      if (!files.length) { setStatus('Please drop audio files.'); return; }
-      if (isBatch) {
-        state.batchFiles = files; input.files = createFileList(files);
-      } else {
-        state.singleFile = files[0]; input.files = createFileList([files[0]]);
-      }
+  // Unified file input handler
+  function updateFileDisplay(displayEl, files) {
+    if (!displayEl) return;
+    if (!files || files.length === 0) {
+      displayEl.classList.remove('has-file');
+      displayEl.textContent = '';
+    } else if (files.length === 1) {
+      displayEl.classList.add('has-file');
+      displayEl.textContent = files[0].name;
+    } else {
+      displayEl.classList.add('has-file');
+      displayEl.textContent = `${files.length} files selected`;
+    }
+  }
+  
+  const fileInput = qs('#audio-files');
+  if (fileInput) {
+    fileInput.addEventListener('change', e => { 
+      state.files = Array.from(e.target.files);
+      updateFileDisplay(qs('#selected-files'), state.files);
     });
   }
-  function createFileList(files) {
-    const dt = new DataTransfer(); files.forEach(f => dt.items.add(f)); return dt.files;
+
+  // Unified dropzone
+  const dropzone = qs('#dropzone');
+  const display = qs('#selected-files');
+  if (dropzone && fileInput) {
+    dropzone.addEventListener('click', () => fileInput.click());
+    
+    ['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, (e) => { 
+      e.preventDefault(); e.stopPropagation(); 
+      dropzone.classList.add('drag-over'); 
+    }));
+    ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, (e) => { 
+      e.preventDefault(); e.stopPropagation(); 
+      dropzone.classList.remove('drag-over'); 
+    }));
+    dropzone.addEventListener('drop', (e) => {
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|flac|ogg|m4a|aac)$/i.test(f.name));
+      if (!files.length) { setStatus('Please drop audio files.'); return; }
+      state.files = files;
+      const dt = new DataTransfer(); files.forEach(f => dt.items.add(f)); fileInput.files = dt.files;
+      updateFileDisplay(display, files);
+    });
   }
-  wireDrop('#upload-single', '#single-file', false);
-  wireDrop('#upload-batch', '#batch-files', true);
 
   // Persist and restore settings
   const SETTINGS_KEY = 'apollodb_settings';
@@ -1107,7 +1067,8 @@ function wireUI() {
   if (btnCsv) btnCsv.addEventListener('click', () => exportEq('autoeq_csv'));
 
   qs('#analyze-btn').addEventListener('click', () => {
-    if (state.mode === 'single') analyzeSingle();
+    if (!state.files.length) { setStatus('Please select audio files.'); return; }
+    if (state.files.length === 1) analyzeSingle();
     else analyzeBatch();
   });
 

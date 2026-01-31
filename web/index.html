@@ -55,25 +55,57 @@
       </div>
     </section>
 
-    <!-- Analysis Section -->
-    <section id="section-analysis" class="section active glass-sidebar">
-      <div class="sidebar-tabs">
-        <h3>Analysis Mode</h3>
-        <div class="row">
-          <label><input type="radio" name="mode" value="single" checked /> Single</label>
-          <label><input type="radio" name="mode" value="batch" /> Batch</label>
+    <!-- Quick Start Guide -->
+    <details class="guide-panel" open>
+      <summary class="guide-header">Quick Start Guide</summary>
+      <div class="guide-content">
+        <div class="guide-steps">
+          <div class="guide-step">
+            <div class="step-num">1</div>
+            <div class="step-text">
+              <strong>Upload Audio</strong>
+              <span>Select or drag an audio file (MP3, WAV, FLAC, M4A, OGG). For batch analysis, switch to Batch mode.</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="step-num">2</div>
+            <div class="step-text">
+              <strong>Adjust Parameters</strong>
+              <span>Set EQ aggression (0-1), style (Wavelet/Parametric/Graphic), and optional warmth/presence/air macros.</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="step-num">3</div>
+            <div class="step-text">
+              <strong>Analyze</strong>
+              <span>Click Analyze to predict emotion and generate EQ curves. Results show valence, arousal, and confidence scores.</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="step-num">4</div>
+            <div class="step-text">
+              <strong>Export</strong>
+              <span>Download EQed audio, spectrogram, or export EQ presets for Equalizer APO, AutoEQ, or other software.</span>
+            </div>
+          </div>
         </div>
       </div>
+    </details>
+
+    <!-- Analysis Section -->
+    <section id="section-analysis" class="section active">
       <div class="content-container">
-        <div id="upload-single" class="row">
-          <label for="single-file" class="small muted" aria-label="Select an audio file for single analysis">Single File</label>
-          <input id="single-file" type="file" accept="audio/*" aria-describedby="single-hint" />
-          <div id="single-hint" class="muted small">Drag and drop a file here or click to browse</div>
-        </div>
-        <div id="upload-batch" class="row" style="display:none;">
-          <label for="batch-files" class="small muted" aria-label="Select multiple audio files for batch analysis">Batch Files</label>
-          <input id="batch-files" type="file" accept="audio/*" multiple aria-describedby="batch-hint" />
-          <div id="batch-hint" class="muted small">Drag and drop files here or click to browse</div>
+        <!-- Unified File Upload Dropzone -->
+        <div class="upload-zone">
+          <input id="audio-files" type="file" accept="audio/*" multiple class="file-input-hidden" />
+          <div class="dropzone" id="dropzone">
+            <div class="dropzone-text">
+              <span class="dropzone-main">Drop audio files here</span>
+              <span class="dropzone-sub">or <span class="dropzone-browse">browse</span> to choose</span>
+            </div>
+            <div class="dropzone-formats">MP3, WAV, FLAC, OGG, M4A — upload one or more files</div>
+            <div class="dropzone-file" id="selected-files"></div>
+          </div>
         </div>
 
         <div class="row settings">
@@ -198,37 +230,46 @@
   </main>
 
   <template id="single-template">
-    <div class="grid-2">
-      <div>
-        <div class="metric-container"><div class="metric-value" id="emotion"></div><div class="metric-label">Primary Emotion</div></div>
-        <div class="metric-container"><div class="metric-value" id="secondary"></div><div class="metric-label">Secondary Emotion</div></div>
-        <div class="metric-container"><div class="metric-value" id="valence"></div><div class="metric-label">Valence</div></div>
-        <div class="metric-container"><div class="metric-value" id="arousal"></div><div class="metric-label">Arousal</div></div>
-        <div class="metric-container"><div class="metric-value" id="confidence"></div><div class="metric-label">Confidence</div></div>
+    <!-- Row 1: Emotion Results + VA Chart -->
+    <div class="results-row">
+      <div class="results-card metrics-card">
+        <h4 class="card-title">Analysis Results</h4>
+        <div class="metrics-grid">
+          <div class="metric-item primary">
+            <div class="metric-value" id="emotion"></div>
+            <div class="metric-label">Primary Emotion</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-value" id="secondary"></div>
+            <div class="metric-label">Secondary</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-value" id="valence"></div>
+            <div class="metric-label">Valence</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-value" id="arousal"></div>
+            <div class="metric-label">Arousal</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-value" id="confidence"></div>
+            <div class="metric-label">Confidence</div>
+          </div>
+        </div>
       </div>
-      <div>
+      <div class="results-card">
         <div id="va-chart" class="chart"></div>
       </div>
     </div>
-    <div class="grid-2">
-      <div>
-        <h4 class="section-title">EQ Curve</h4>
+    <!-- Row 2: EQ Curve -->
+    <div class="results-row single-col">
+      <div class="results-card">
         <div id="eq-chart" class="chart"></div>
-        <div class="eq-container" id="eq-text"></div>
+        <details class="eq-details">
+          <summary>View EQ Data</summary>
+          <div class="eq-container" id="eq-text"></div>
+        </details>
         <button id="download-eq-text">Download EQ Text</button>
-      </div>
-      <div>
-        <h4 class="section-title">Actions</h4>
-        <div class="row">
-          <button id="download-eq-audio">Download EQed Audio</button>
-        </div>
-        <div class="spectro-card" id="spectro-card" style="display:none;">
-          <img id="spec-img" alt="Spectrogram"/>
-          <div class="row"><button id="download-spectrogram" aria-label="Download spectrogram image">Download Spectrogram</button></div>
-        </div>
-        <div class="row">
-          <a id="spotify-link" class="spotify-btn" role="button" href="#" target="_blank" aria-label="Find Mix on Spotify">Find Mix on Spotify</a>
-        </div>
       </div>
     </div>
   </template>
