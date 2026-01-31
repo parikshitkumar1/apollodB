@@ -10,12 +10,13 @@ const apiCandidates = (() => {
   const fromQuery = (location.search.match(/api=([^&]+)/) || [])[1];
   if (fromQuery) list.push(fromQuery);
   
-  // 2. Current origin (for production deployment)
-  if (location.origin.includes('apollodb2-') && location.origin.includes('.run.app')) {
+  // 2. Current origin (for production deployment - GCP or Render)
+  if (location.origin.includes('.run.app') || location.origin.includes('.onrender.com')) {
     list.push(location.origin);
   }
   
-  // 3. Common deployment patterns
+  // 3. Common deployment patterns (Render and GCP)
+  // Note: Update this after Render deployment with your actual URL
   list.push('https://apollodb2-833721505155.us-central1.run.app');
   
   // 4. Local development endpoints (last resort)
