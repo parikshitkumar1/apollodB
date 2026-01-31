@@ -16,10 +16,10 @@ from scipy import signal
 
 # Audio processing parameters
 SR = 22050
-DURATION = 15  # Reduced from 30s for faster inference
+DURATION = 30  # Keep original for model compatibility
 N_MELS = 128
 HOP_LENGTH = 512
-MAX_LEN = 650  # Adjusted for 15s duration
+MAX_LEN = 1300  # Must match trained model
 
 class SelfAttentionPooling(nn.Module):
     def __init__(self, input_dim):
